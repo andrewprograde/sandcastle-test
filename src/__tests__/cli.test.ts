@@ -13,6 +13,24 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("fish command", () => {
+  it("outputs ASCII art of a fish when called", () => {
+    const output: string[] = [];
+    const program = createProgram((message) => output.push(message));
+
+    program.parse(["node", "app", "fish"]);
+
+    expect(output).toEqual([
+      [
+        "      /\\",
+        "   __/  \\__",
+        "><_  ))))><",
+        "   \\__/",
+      ].join("\n"),
+    ]);
+  });
+});
+
 describe("joke command", () => {
   it("outputs a funny joke when called", () => {
     const output: string[] = [];

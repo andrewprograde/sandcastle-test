@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { Command } from "commander";
+import { getFishAsciiArt } from "./fish.js";
 import { greet } from "./greet.js";
 import { formatHackerNewsStories, getTopHackerNewsStories } from "./hackerNews.js";
 import { getJoke } from "./joke.js";
@@ -20,6 +21,13 @@ export function createProgram(
     .description("Greet someone by name")
     .action((name: string) => {
       output(greet(name));
+    });
+
+  program
+    .command("fish")
+    .description("Show ASCII art of a fish")
+    .action(() => {
+      output(getFishAsciiArt());
     });
 
   program
