@@ -1,11 +1,30 @@
-FROM node:22-bookworm
+FROM node:22-bookworm AS node_runtime
+FROM ghcr.io/astral-sh/uv:latest AS uv_runtime
+FROM python:3-bookworm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
+  build-essential \
+  ca-certificates \
   git \
   curl \
   jq \
   && rm -rf /var/lib/apt/lists/*
+
+# Copy Node 22 from the official Node image. Sandcastle/Pi tooling is Node-based,
+# while the final image is Python-first for PyPI/uv projects.
+COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node_runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+  && ln -sf ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
+
+# Install uv/uvx for Python dependency management.
+COPY --from=uv_runtime /uv /usr/local/bin/uv
+COPY --from=uv_runtime /uvx /usr/local/bin/uvx
+
+# Keep baseline Python packaging tools current for plain PyPI/pip workflows.
+RUN python -m pip install --upgrade pip setuptools wheel
 
 # Install GitHub CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
@@ -21,8 +40,9 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 ARG AGENT_UID=1000
 ARG AGENT_GID=1000
 
-# Rename the base image's "node" user to "agent" and align UID/GID.
-RUN groupmod -o -g $AGENT_GID node && usermod -o -u $AGENT_UID -g $AGENT_GID -d /home/agent -m -l agent node
+# Create the agent user and align UID/GID with the host user.
+RUN if ! getent group "$AGENT_GID" > /dev/null; then groupadd -o -g "$AGENT_GID" agent; fi \
+  && useradd -o -u "$AGENT_UID" -g "$AGENT_GID" -d /home/agent -m -s /bin/bash agent
 
 # Install pnpm plus global agent tooling (run as root before USER agent).
 ENV PNPM_HOME=/usr/local/share/pnpm
@@ -34,7 +54,7 @@ RUN mkdir -p "$PNPM_HOME/bin" "$COREPACK_HOME" \
   && corepack prepare pnpm@11.5.2 --activate \
   && pnpm config set global-bin-dir "$PNPM_HOME/bin" \
   && pnpm add --global --ignore-scripts @earendil-works/pi-coding-agent @dotenvx/dotenvx \
-  && chown -R $AGENT_UID:$AGENT_GID "$PNPM_HOME" "$COREPACK_HOME"
+  && chown -R "$AGENT_UID:$AGENT_GID" "$PNPM_HOME" "$COREPACK_HOME"
 
 # Git identity for agent-created commits is configured at runtime by
 # .sandcastle/main.mts using these optional environment variables.
@@ -49,7 +69,7 @@ ENV PI_CODING_AGENT_DIR=/home/agent/.pi/agent \
   PI_OAUTH_CALLBACK_HOST=0.0.0.0
 
 RUN mkdir -p "$PI_CODING_AGENT_SESSION_DIR" \
-  && chown -R $AGENT_UID:$AGENT_GID /home/agent/.pi
+  && chown -R "$AGENT_UID:$AGENT_GID" /home/agent/.pi
 
 USER ${AGENT_UID}:${AGENT_GID}
 

@@ -58,7 +58,7 @@ pnpm exec dotenvx set GH_TOKEN "replace-with-new-token" -f .env.sandcastle
 
 ## Rebuild the Sandcastle image
 
-The Docker image includes Pi, pnpm, and dotenvx:
+The Docker image includes Python, uv/uvx, Node, Pi, pnpm, and dotenvx:
 
 ```bash
 pnpm exec sandcastle docker build-image
