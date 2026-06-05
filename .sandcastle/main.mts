@@ -44,9 +44,23 @@ const planSchema = z.object({
 const MAX_ITERATIONS = 10;
 
 // Hooks run inside the sandbox before the agent starts each iteration.
-// npm install ensures the sandbox always has fresh dependencies.
+// Git identity is configured from env after Sandcastle's own git setup, so it
+// can override any host/container default without baking a name/email into the
+// image. npm install ensures the sandbox always has fresh dependencies.
 const hooks = {
-  sandbox: { onSandboxReady: [{ command: "npm install" }] },
+  sandbox: {
+    onSandboxReady: [
+      {
+        command:
+          'if [ -n "$SANDCASTLE_GIT_USER_NAME" ]; then git config --global user.name "$SANDCASTLE_GIT_USER_NAME"; fi',
+      },
+      {
+        command:
+          'if [ -n "$SANDCASTLE_GIT_USER_EMAIL" ]; then git config --global user.email "$SANDCASTLE_GIT_USER_EMAIL"; fi',
+      },
+      { command: "npm install" },
+    ],
+  },
 };
 
 // Copy node_modules from the host into the worktree before each sandbox
@@ -62,7 +76,19 @@ const piStateMount = {
   sandboxPath: "~/.pi/agent",
 };
 
-const sandboxProvider = () => docker({ mounts: [piStateMount] });
+const gitIdentityEnv: Record<string, string> = {};
+for (const key of [
+  "SANDCASTLE_GIT_USER_NAME",
+  "SANDCASTLE_GIT_USER_EMAIL",
+]) {
+  const value = process.env[key];
+  if (value) {
+    gitIdentityEnv[key] = value;
+  }
+}
+
+const sandboxProvider = () =>
+  docker({ mounts: [piStateMount], env: gitIdentityEnv });
 
 const piAgent = sandcastle.pi("openai-codex/gpt-5.5", { thinking: "low" });
 
