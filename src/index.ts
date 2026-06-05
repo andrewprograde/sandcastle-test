@@ -1,9 +1,13 @@
 import { pathToFileURL } from "node:url";
 import { Command } from "commander";
 import { greet } from "./greet.js";
+import { formatHackerNewsStories, getTopHackerNewsStories } from "./hackerNews.js";
 import { getJoke } from "./joke.js";
 
-export function createProgram(output: (message: string) => void = console.log): Command {
+export function createProgram(
+  output: (message: string) => void = console.log,
+  error: (message: string) => void = console.error,
+): Command {
   const program = new Command();
 
   program
@@ -25,9 +29,23 @@ export function createProgram(output: (message: string) => void = console.log): 
       output(getJoke());
     });
 
+  program
+    .command("hacker-news")
+    .alias("hn")
+    .description("Show the top 10 Hacker News stories")
+    .action(async () => {
+      try {
+        const stories = await getTopHackerNewsStories();
+        output(formatHackerNewsStories(stories));
+      } catch (cause) {
+        error(cause instanceof Error ? cause.message : "Failed to fetch Hacker News stories");
+        process.exitCode = 1;
+      }
+    });
+
   return program;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  createProgram().parse(process.argv);
+  await createProgram().parseAsync(process.argv);
 }
