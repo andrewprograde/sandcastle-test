@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getFishAsciiArt } from "../fish.js";
 import { createProgram } from "../index.js";
 
 function mockJsonResponse(data: unknown) {
@@ -20,14 +21,7 @@ describe("fish command", () => {
 
     program.parse(["node", "app", "fish"]);
 
-    expect(output).toEqual([
-      [
-        "      /\\",
-        "   __/  \\__",
-        "><_  ))))><",
-        "   \\__/",
-      ].join("\n"),
-    ]);
+    expect(output).toEqual([getFishAsciiArt()]);
   });
 });
 

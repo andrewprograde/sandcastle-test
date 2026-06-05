@@ -1,3 +1,6 @@
+/**
+ * Returns ASCII art of a fish.
+ */
 export function getFishAsciiArt(): string {
   return [
     "      /\\",
