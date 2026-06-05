@@ -64,6 +64,8 @@ The Docker image includes Pi, pnpm, and dotenvx:
 pnpm exec sandcastle docker build-image
 ```
 
+Sandcastle worktree containers run `CI=true pnpm install --frozen-lockfile` during setup. Head containers do not run install because they bind-mount the host repo and host `node_modules`. The script also does not copy `node_modules` between worktrees because pnpm records store paths in `node_modules/.modules.yaml`, and copied pnpm installs can fail in non-interactive containers.
+
 ## Run Sandcastle with dotenvx
 
 For normal host-side decryption:
@@ -81,7 +83,7 @@ set +a
 pnpm run sandcastle:dotenvx
 ```
 
-Inside a sandbox, dotenvx is available, so an agent can run commands like:
+Inside a sandbox, dotenvx is available, and `SANDCASTLE_GIT_USER_NAME` / `SANDCASTLE_GIT_USER_EMAIL` are exposed as `GIT_AUTHOR_*` and `GIT_COMMITTER_*` so agent commits use the configured identity. Agents can run commands like:
 
 ```bash
 dotenvx run -f .env.sandcastle -- pnpm test

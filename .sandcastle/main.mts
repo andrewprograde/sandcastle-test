@@ -42,29 +42,27 @@ const planSchema = z.object({
 const MAX_ITERATIONS = 10;
 
 // Hooks run inside the sandbox before the agent starts each iteration.
-// Git identity is configured from env after Sandcastle's own git setup, so it
-// can override any host/container default without baking a name/email into the
-// image. pnpm install ensures the sandbox always has fresh dependencies.
-const hooks = {
+// Git author identity is passed through environment variables below instead of
+// writing ~/.gitconfig in hooks. Sandcastle runs sandbox hooks concurrently, so
+// multiple `git config --global` hooks can race on ~/.gitconfig.lock.
+
+// Head sandboxes bind-mount the working repo, including host node_modules. Do
+// not run pnpm install there: pnpm records absolute store paths and would purge
+// host node_modules when the container path differs.
+const headHooks = {};
+
+// Worktree sandboxes get their own node_modules, so installing there is safe.
+// CI=true lets pnpm purge/recreate node_modules without an interactive prompt.
+const worktreeHooks = {
   sandbox: {
-    onSandboxReady: [
-      {
-        command:
-          'if [ -n "$SANDCASTLE_GIT_USER_NAME" ]; then git config --global user.name "$SANDCASTLE_GIT_USER_NAME"; fi',
-      },
-      {
-        command:
-          'if [ -n "$SANDCASTLE_GIT_USER_EMAIL" ]; then git config --global user.email "$SANDCASTLE_GIT_USER_EMAIL"; fi',
-      },
-      { command: "pnpm install" },
-    ],
+    onSandboxReady: [{ command: "CI=true pnpm install --frozen-lockfile" }],
   },
 };
 
-// Copy node_modules from the host into the worktree before each sandbox
-// starts. Avoids a full pnpm install from scratch; the hook above handles
-// platform-specific binaries and any packages added since the last copy.
-const copyToWorktree = ["node_modules"];
+// Do not copy node_modules with pnpm. pnpm records an absolute store path in
+// node_modules/.modules.yaml, so host/container or worktree copies can fail
+// non-interactively when pnpm tries to switch stores.
+const copyToWorktree = [];
 
 // Persist Pi's auth.json and sessions on the host so ChatGPT/Codex OAuth
 // survives container restarts. The directory exists in git via .gitkeep, while
@@ -74,18 +72,30 @@ const piStateMount = {
   sandboxPath: "~/.pi/agent",
 };
 
-const sandboxEnv: Record<string, string> = {};
+const sandboxEnv: Record<string, string> = {
+  // Prevent `pnpm run <script>` inside a head sandbox from auto-running
+  // `pnpm install` against host node_modules, whose store path differs inside
+  // the container.
+  pnpm_config_verify_deps_before_run: "false",
+};
 for (const [key, value] of Object.entries(process.env)) {
   if (!value) {
     continue;
   }
 
-  if (
-    key === "SANDCASTLE_GIT_USER_NAME" ||
-    key === "SANDCASTLE_GIT_USER_EMAIL" ||
-    key === "DOTENV_PRIVATE_KEY" ||
-    key.startsWith("DOTENV_PRIVATE_KEY_")
-  ) {
+  if (key === "SANDCASTLE_GIT_USER_NAME") {
+    sandboxEnv[key] = value;
+    sandboxEnv.GIT_AUTHOR_NAME = value;
+    sandboxEnv.GIT_COMMITTER_NAME = value;
+  }
+
+  if (key === "SANDCASTLE_GIT_USER_EMAIL") {
+    sandboxEnv[key] = value;
+    sandboxEnv.GIT_AUTHOR_EMAIL = value;
+    sandboxEnv.GIT_COMMITTER_EMAIL = value;
+  }
+
+  if (key === "DOTENV_PRIVATE_KEY" || key.startsWith("DOTENV_PRIVATE_KEY_")) {
     sandboxEnv[key] = value;
   }
 }
@@ -111,7 +121,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   // It outputs a <plan> JSON block — Output.object parses and validates it.
   // -------------------------------------------------------------------------
   const plan = await sandcastle.run({
-    hooks,
+    hooks: headHooks,
     sandbox: sandboxProvider(),
     name: "planner",
     // One iteration is enough: the planner just needs to read and reason,
@@ -155,7 +165,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
       const sandbox = await sandcastle.createSandbox({
         branch: issue.branch,
         sandbox: sandboxProvider(),
-        hooks,
+        hooks: worktreeHooks,
         copyToWorktree,
       });
 
@@ -245,7 +255,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   // uses to know which branches to merge and which issues to close.
   // -------------------------------------------------------------------------
   await sandcastle.run({
-    hooks,
+    hooks: headHooks,
     sandbox: sandboxProvider(),
     name: "merger",
     maxIterations: 1,

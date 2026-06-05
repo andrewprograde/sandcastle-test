@@ -26,12 +26,15 @@ RUN groupmod -o -g $AGENT_GID node && usermod -o -u $AGENT_UID -g $AGENT_GID -d 
 
 # Install pnpm plus global agent tooling (run as root before USER agent).
 ENV PNPM_HOME=/usr/local/share/pnpm
-ENV PATH=$PNPM_HOME:$PATH
+ENV COREPACK_HOME=/usr/local/share/corepack
+ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
 
-RUN mkdir -p "$PNPM_HOME" \
+RUN mkdir -p "$PNPM_HOME/bin" "$COREPACK_HOME" \
   && corepack enable \
   && corepack prepare pnpm@11.5.2 --activate \
-  && pnpm add --global --ignore-scripts @earendil-works/pi-coding-agent @dotenvx/dotenvx
+  && pnpm config set global-bin-dir "$PNPM_HOME/bin" \
+  && pnpm add --global --ignore-scripts @earendil-works/pi-coding-agent @dotenvx/dotenvx \
+  && chown -R $AGENT_UID:$AGENT_GID "$PNPM_HOME" "$COREPACK_HOME"
 
 # Git identity for agent-created commits is configured at runtime by
 # .sandcastle/main.mts using these optional environment variables.

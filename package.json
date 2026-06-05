@@ -16,11 +16,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-hero/sandcastle": "^0.7.0",
-    "@dotenvx/dotenvx": "^1.71.0",
-    "@types/node": "^22.15.29",
-    "tsx": "^4.22.4",
-    "typescript": "^5.8.3",
-    "vitest": "^4.1.8"
+    "@ai-hero/sandcastle": "0.7.0",
+    "@dotenvx/dotenvx": "1.71.0",
+    "@types/node": "22.15.29",
+    "tsx": "4.22.4",
+    "typescript": "5.8.3",
+    "vitest": "4.1.8"
   }
 }
