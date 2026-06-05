@@ -1,1 +1,8 @@
 node_modules/
+package-lock.json
+yarn.lock
+.env
+.env.local
+.env.*.local
+.env.keys
+.env.keys*

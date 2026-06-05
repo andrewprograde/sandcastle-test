@@ -2,8 +2,10 @@
   "name": "workspace",
   "type": "module",
   "version": "0.1.0",
+  "packageManager": "pnpm@11.5.2",
   "scripts": {
-    "sandcastle": "npx tsx .sandcastle/main.mts",
+    "sandcastle": "tsx .sandcastle/main.mts",
+    "sandcastle:dotenvx": "dotenvx run -f .env.sandcastle -- pnpm run sandcastle",
     "start": "tsx src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -15,9 +17,10 @@
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "^0.7.0",
+    "@dotenvx/dotenvx": "^1.71.0",
     "@types/node": "^22.15.29",
     "tsx": "^4.22.4",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.3"
+    "vitest": "^4.1.8"
   }
 }
