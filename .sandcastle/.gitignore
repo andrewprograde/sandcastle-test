@@ -2,3 +2,5 @@
 logs/
 worktrees/
 node_modules/
+pi/*
+!pi/.gitkeep

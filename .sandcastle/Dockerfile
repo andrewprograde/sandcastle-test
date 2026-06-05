@@ -25,7 +25,17 @@ ARG AGENT_GID=1000
 RUN groupmod -o -g $AGENT_GID node && usermod -o -u $AGENT_UID -g $AGENT_GID -d /home/agent -m -l agent node
 
 # Install pi coding agent (run as root before USER agent)
-RUN npm install -g @mariozechner/pi-coding-agent
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+
+# Pi stores subscription OAuth credentials in auth.json under PI_CODING_AGENT_DIR.
+# The Sandcastle script bind-mounts .sandcastle/pi here so ChatGPT/Codex OAuth
+# tokens and Pi sessions survive container restarts without being committed.
+ENV PI_CODING_AGENT_DIR=/home/agent/.pi/agent \
+  PI_CODING_AGENT_SESSION_DIR=/home/agent/.pi/agent/sessions \
+  PI_OAUTH_CALLBACK_HOST=0.0.0.0
+
+RUN mkdir -p "$PI_CODING_AGENT_SESSION_DIR" \
+  && chown -R $AGENT_UID:$AGENT_GID /home/agent/.pi
 
 USER ${AGENT_UID}:${AGENT_GID}
 
