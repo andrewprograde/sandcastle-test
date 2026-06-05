@@ -27,6 +27,10 @@ RUN groupmod -o -g $AGENT_GID node && usermod -o -u $AGENT_UID -g $AGENT_GID -d 
 # Install pi coding agent (run as root before USER agent)
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
+# Configure git author identity for agent-created commits.
+RUN git config --system user.name "Andrew Alanis" \
+  && git config --system user.email "andrew@progradtechlabs.com"
+
 # Pi stores subscription OAuth credentials in auth.json under PI_CODING_AGENT_DIR.
 # The Sandcastle script bind-mounts .sandcastle/pi here so ChatGPT/Codex OAuth
 # tokens and Pi sessions survive container restarts without being committed.
