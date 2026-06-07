@@ -10,6 +10,10 @@ function mockJsonResponse(data: unknown) {
   };
 }
 
+function stripTerminalHyperlinks(value: string): string {
+  return value.replace(/\u001B]8;;[^\u0007]*\u0007/g, "").replace(/\u001B]8;;\u0007/g, "");
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -39,7 +43,7 @@ describe("joke command", () => {
 });
 
 describe("hacker-news command", () => {
-  it("keeps long Hacker News URLs intact so terminal links open the full URL", async () => {
+  it("truncates long Hacker News URLs for display while keeping the full URL clickable", async () => {
     const output: string[] = [];
     const longUrl = [
       "https://example.com/articles/",
@@ -63,8 +67,9 @@ describe("hacker-news command", () => {
     await program.parseAsync(["node", "app", "hn"]);
 
     expect(output).toHaveLength(1);
-    expect(output[0]).toContain(longUrl);
-    expect(output[0]).not.toContain("…");
+    expect(output[0]).toContain(`\u001B]8;;${longUrl}\u0007`);
+    expect(output[0]).toContain("https://example.com/articles/this-is-a-very-long-hacker-new…");
+    expect(output[0]).not.toContain(`${longUrl}  |`);
   });
 
   it("outputs the top 10 Hacker News stories as a table", async () => {
@@ -87,7 +92,8 @@ describe("hacker-news command", () => {
     await program.parseAsync(["node", "app", "hacker-news"]);
 
     expect(fetchMock).toHaveBeenCalledTimes(11);
-    expect(output).toEqual([
+    expect(output).toHaveLength(1);
+    expect(stripTerminalHyperlinks(output[0])).toEqual(
       [
         "Top 10 Hacker News Stories",
         "+----+-------+----------+------------------------------+",
@@ -105,6 +111,6 @@ describe("hacker-news command", () => {
         "| 10 | 100   | Story 10 | https://example.com/story-10 |",
         "+----+-------+----------+------------------------------+",
       ].join("\n"),
-    ]);
+    );
   });
 });

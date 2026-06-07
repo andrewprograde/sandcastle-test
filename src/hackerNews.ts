@@ -17,9 +17,15 @@ type FetchLike = (input: string) => Promise<{
   json: () => Promise<unknown>;
 }>;
 
+type TableCell = {
+  value: string;
+  width: number;
+};
+
 const HACKER_NEWS_API_BASE = "https://hacker-news.firebaseio.com/v0";
 const DEFAULT_STORY_LIMIT = 10;
 const MAX_TITLE_LENGTH = 60;
+const MAX_URL_DISPLAY_LENGTH = 60;
 
 export async function getTopHackerNewsStories(
   fetchImpl: FetchLike = fetch,
@@ -41,20 +47,20 @@ export async function getTopHackerNewsStories(
 
 export function formatHackerNewsStories(stories: HackerNewsStory[]): string {
   const rows = stories.map((story) => [
-    String(story.rank),
-    String(story.score),
-    truncate(story.title, MAX_TITLE_LENGTH),
-    story.url,
+    textCell(String(story.rank)),
+    textCell(String(story.score)),
+    textCell(truncate(story.title, MAX_TITLE_LENGTH)),
+    urlCell(story.url),
   ]);
 
-  const table = [["#", "Score", "Title", "URL"], ...rows];
+  const table = [["#", "Score", "Title", "URL"].map(textCell), ...rows];
   const widths = table[0].map((_, columnIndex) =>
-    Math.max(...table.map((row) => row[columnIndex].length)),
+    Math.max(...table.map((row) => row[columnIndex].width)),
   );
 
   const border = `+${widths.map((width) => "-".repeat(width + 2)).join("+")}+`;
-  const formatRow = (row: string[]) =>
-    `| ${row.map((cell, index) => cell.padEnd(widths[index])).join(" | ")} |`;
+  const formatRow = (row: TableCell[]) =>
+    `| ${row.map((cell, index) => cell.value + " ".repeat(widths[index] - cell.width)).join(" | ")} |`;
 
   return [
     "Top 10 Hacker News Stories",
@@ -103,6 +109,26 @@ function parseHackerNewsItem(value: unknown): HackerNewsItem {
     score: typeof item.score === "number" ? item.score : undefined,
     url: typeof item.url === "string" ? item.url : undefined,
   };
+}
+
+function textCell(value: string): TableCell {
+  return {
+    value,
+    width: value.length,
+  };
+}
+
+function urlCell(url: string): TableCell {
+  const displayUrl = truncate(url, MAX_URL_DISPLAY_LENGTH);
+
+  return {
+    value: hyperlink(url, displayUrl),
+    width: displayUrl.length,
+  };
+}
+
+function hyperlink(url: string, label: string): string {
+  return `\u001B]8;;${url}\u0007${label}\u001B]8;;\u0007`;
 }
 
 function truncate(value: string, maxLength: number): string {
