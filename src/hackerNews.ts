@@ -18,14 +18,16 @@ type FetchLike = (input: string) => Promise<{
 }>;
 
 type TableCell = {
-  value: string;
-  width: number;
+  content: string;
+  displayWidth: number;
 };
 
 const HACKER_NEWS_API_BASE = "https://hacker-news.firebaseio.com/v0";
 const DEFAULT_STORY_LIMIT = 10;
 const MAX_TITLE_LENGTH = 60;
 const MAX_URL_DISPLAY_LENGTH = 60;
+const TERMINAL_HYPERLINK_START = "\u001B]8;;";
+const TERMINAL_HYPERLINK_END = "\u0007";
 
 export async function getTopHackerNewsStories(
   fetchImpl: FetchLike = fetch,
@@ -55,19 +57,17 @@ export function formatHackerNewsStories(stories: HackerNewsStory[]): string {
 
   const table = [["#", "Score", "Title", "URL"].map(textCell), ...rows];
   const widths = table[0].map((_, columnIndex) =>
-    Math.max(...table.map((row) => row[columnIndex].width)),
+    Math.max(...table.map((row) => row[columnIndex].displayWidth)),
   );
 
   const border = `+${widths.map((width) => "-".repeat(width + 2)).join("+")}+`;
-  const formatRow = (row: TableCell[]) =>
-    `| ${row.map((cell, index) => cell.value + " ".repeat(widths[index] - cell.width)).join(" | ")} |`;
 
   return [
     "Top 10 Hacker News Stories",
     border,
-    formatRow(table[0]),
+    formatTableRow(table[0], widths),
     border,
-    ...rows.map(formatRow),
+    ...rows.map((row) => formatTableRow(row, widths)),
     border,
   ].join("\n");
 }
@@ -113,8 +113,8 @@ function parseHackerNewsItem(value: unknown): HackerNewsItem {
 
 function textCell(value: string): TableCell {
   return {
-    value,
-    width: value.length,
+    content: value,
+    displayWidth: value.length,
   };
 }
 
@@ -122,13 +122,26 @@ function urlCell(url: string): TableCell {
   const displayUrl = truncate(url, MAX_URL_DISPLAY_LENGTH);
 
   return {
-    value: hyperlink(url, displayUrl),
-    width: displayUrl.length,
+    content: hyperlink(url, displayUrl),
+    displayWidth: displayUrl.length,
   };
 }
 
+function formatTableRow(row: TableCell[], widths: number[]): string {
+  const cells = row.map((cell, index) => {
+    const padding = " ".repeat(widths[index] - cell.displayWidth);
+    return `${cell.content}${padding}`;
+  });
+
+  return `| ${cells.join(" | ")} |`;
+}
+
 function hyperlink(url: string, label: string): string {
-  return `\u001B]8;;${url}\u0007${label}\u001B]8;;\u0007`;
+  return [
+    `${TERMINAL_HYPERLINK_START}${url}${TERMINAL_HYPERLINK_END}`,
+    label,
+    `${TERMINAL_HYPERLINK_START}${TERMINAL_HYPERLINK_END}`,
+  ].join("");
 }
 
 function truncate(value: string, maxLength: number): string {
