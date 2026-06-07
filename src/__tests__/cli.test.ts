@@ -39,6 +39,30 @@ describe("joke command", () => {
 });
 
 describe("hacker-news command", () => {
+  it("keeps long Hacker News URLs intact so terminal links open the full URL", async () => {
+    const output: string[] = [];
+    const longUrl = "https://example.com/articles/this-is-a-very-long-hacker-news-url-that-must-remain-clickable?with=query&and=more";
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/topstories.json")) {
+        return mockJsonResponse([1]);
+      }
+
+      return mockJsonResponse({
+        title: "Long URL Story",
+        score: 42,
+        url: longUrl,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const program = createProgram((message) => output.push(message));
+
+    await program.parseAsync(["node", "app", "hn"]);
+
+    expect(output).toHaveLength(1);
+    expect(output[0]).toContain(longUrl);
+    expect(output[0]).not.toContain("…");
+  });
+
   it("outputs the top 10 Hacker News stories as a table", async () => {
     const output: string[] = [];
     const fetchMock = vi.fn(async (url: string) => {

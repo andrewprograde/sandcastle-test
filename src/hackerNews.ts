@@ -20,7 +20,6 @@ type FetchLike = (input: string) => Promise<{
 const HACKER_NEWS_API_BASE = "https://hacker-news.firebaseio.com/v0";
 const DEFAULT_STORY_LIMIT = 10;
 const MAX_TITLE_LENGTH = 60;
-const MAX_URL_LENGTH = 50;
 
 export async function getTopHackerNewsStories(
   fetchImpl: FetchLike = fetch,
@@ -45,7 +44,7 @@ export function formatHackerNewsStories(stories: HackerNewsStory[]): string {
     String(story.rank),
     String(story.score),
     truncate(story.title, MAX_TITLE_LENGTH),
-    truncate(story.url, MAX_URL_LENGTH),
+    story.url,
   ]);
 
   const table = [["#", "Score", "Title", "URL"], ...rows];
