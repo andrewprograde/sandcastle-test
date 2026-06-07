@@ -41,7 +41,11 @@ describe("joke command", () => {
 describe("hacker-news command", () => {
   it("keeps long Hacker News URLs intact so terminal links open the full URL", async () => {
     const output: string[] = [];
-    const longUrl = "https://example.com/articles/this-is-a-very-long-hacker-news-url-that-must-remain-clickable?with=query&and=more";
+    const longUrl = [
+      "https://example.com/articles/",
+      "this-is-a-very-long-hacker-news-url-that-must-remain-clickable",
+      "?with=query&and=more",
+    ].join("");
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith("/topstories.json")) {
         return mockJsonResponse([1]);
